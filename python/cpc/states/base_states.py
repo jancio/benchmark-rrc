@@ -443,7 +443,7 @@ class MoveToGoalState(SimpleState):
         if self.t % self.interval == 0 and self.interval_ctr < self.max_interval_ctr:
             self.k_p_goal *= self.gain_increase_factor
             self.interval_ctr += 1
-            print("Update gain k_p to: {} at time: {}".format(self.k_p_goal,time.time()-self.initial_time))
+            # print("Update gain k_p to: {} at time: {}".format(self.k_p_goal,time.time()-self.start_time))
 
     def reset(self):
         print("Reseting move to goal state")

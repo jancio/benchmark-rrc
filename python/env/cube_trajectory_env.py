@@ -231,8 +231,13 @@ class BaseCubeTrajectoryEnv(gym.GoalEnv):
         return [seed]
 
     def _create_observation(self, t, action):
-        robot_observation = self.platform.get_robot_observation(t)
-        camera_observation = self.platform.get_camera_observation(t)
+        if self.simulation:
+            robot_observation = self.sim_platform.get_robot_observation(t)
+            camera_observation = self.sim_platform.get_camera_observation(t)
+        else:
+            robot_observation = self.platform.get_robot_observation(t)
+            camera_observation = self.platform.get_camera_observation(t)
+        
         object_observation = camera_observation.filtered_object_pose
 
         active_goal = np.asarray(
@@ -261,16 +266,28 @@ class BaseCubeTrajectoryEnv(gym.GoalEnv):
 
     def _gym_action_to_robot_action(self, gym_action):
         # construct robot action depending on action type
-        if self.action_type == ActionType.TORQUE:
-            robot_action = self.platform.Action(torque=gym_action)
-        elif self.action_type == ActionType.POSITION:
-            robot_action = self.platform.Action(position=gym_action)
-        elif self.action_type == ActionType.TORQUE_AND_POSITION:
-            robot_action = self.platform.Action(
-                torque=gym_action["torque"], position=gym_action["position"]
-            )
+        if self.simulation:
+            if self.action_type == ActionType.TORQUE:
+                robot_action = self.sim_platform.Action(torque=gym_action)
+            elif self.action_type == ActionType.POSITION:
+                robot_action = self.sim_platform.Action(position=gym_action)
+            elif self.action_type == ActionType.TORQUE_AND_POSITION:
+                robot_action = self.sim_platform.Action(
+                    torque=gym_action["torque"], position=gym_action["position"]
+                )
+            else:
+                raise ValueError("Invalid action_type")
         else:
-            raise ValueError("Invalid action_type")
+            if self.action_type == ActionType.TORQUE:
+                robot_action = self.platform.Action(torque=gym_action)
+            elif self.action_type == ActionType.POSITION:
+                robot_action = self.platform.Action(position=gym_action)
+            elif self.action_type == ActionType.TORQUE_AND_POSITION:
+                robot_action = self.platform.Action(
+                    torque=gym_action["torque"], position=gym_action["position"]
+                )
+            else:
+                raise ValueError("Invalid action_type")
 
         return robot_action
 
@@ -328,7 +345,7 @@ class SimCubeTrajectoryEnv(BaseCubeTrajectoryEnv):
               step() calls will return undefined results.
             - info (dict): info dictionary containing the current time index.
         """
-        if self.platform is None:
+        if self.sim_platform is None:
             raise RuntimeError("Call `reset()` before starting to step.")
 
         if not self.action_space.contains(action):
@@ -352,7 +369,7 @@ class SimCubeTrajectoryEnv(BaseCubeTrajectoryEnv):
 
             # send action to robot
             robot_action = self._gym_action_to_robot_action(action)
-            t = self.platform.append_desired_action(robot_action)
+            t = self.sim_platform.append_desired_action(robot_action)
 
             # update goal visualization
             if self.visualization:
@@ -394,7 +411,7 @@ class SimCubeTrajectoryEnv(BaseCubeTrajectoryEnv):
     def reset(self):
         """Reset the environment."""
         # hard-reset simulation
-        del self.platform
+        del self.sim_platform
 
         # initialize simulation
         initial_robot_position = trifingerpro_limits.robot_position.default
@@ -403,7 +420,7 @@ class SimCubeTrajectoryEnv(BaseCubeTrajectoryEnv):
             position=task.INITIAL_CUBE_POSITION
         )
 
-        self.platform = trifinger_simulation.TriFingerPlatform(
+        self.sim_platform = trifinger_simulation.TriFingerPlatform(
             visualization=self.visualization,
             initial_robot_position=initial_robot_position,
             initial_object_pose=initial_object_pose,
@@ -421,7 +438,7 @@ class SimCubeTrajectoryEnv(BaseCubeTrajectoryEnv):
                 width=task.move_cube._CUBE_WIDTH,
                 position=trajectory[0][1],
                 orientation=(0, 0, 0, 1),
-                pybullet_client_id=self.platform.simfinger._pybullet_client_id,
+                pybullet_client_id=self.sim_platform.simfinger._pybullet_client_id,
             )
 
         self.info = {"time_index": -1, "trajectory": trajectory}
