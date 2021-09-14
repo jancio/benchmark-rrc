@@ -1,11 +1,12 @@
 """Gym environment for the Real Robot Challenge Phase 1 (Simulation)."""
+from gym.core import ObservationWrapper
 import pybullet as p
 import numpy as np
 import gym
 import time
 import cv2
 # from env.cube_env import ActionType
-from env.cube_trajectory_env import ActionType
+from env.rearrange_dice_env import ActionType
 from trifinger_simulation import trifingerpro_limits
 from trifinger_simulation import camera
 
@@ -75,7 +76,7 @@ class action_type_to:
         import gym
         from trifinger_simulation import TriFingerPlatform
         # from env.cube_env import ActionType
-        from env.cube_trajectory_env import ActionType
+        from env.rearrange_dice_env import ActionType
         spaces = TriFingerPlatform.spaces
         if action_type == ActionType.TORQUE:
             action_space = spaces.robot_torque.gym
@@ -103,11 +104,9 @@ class NewToOldObsWrapper(gym.ObservationWrapper):
             "robot_position",
             "robot_velocity",
             "robot_tip_positions",
-            "object_position",
-            "object_orientation",
-            "goal_object_position",
-            "goal_object_orientation",
             "tip_force",
+            "desired_goal",
+            "achieved_goal",
         ]
 
         self.observation_space = gym.spaces.Dict(
@@ -116,13 +115,11 @@ class NewToOldObsWrapper(gym.ObservationWrapper):
                 "robot_velocity": env.observation_space['robot']['velocity'],
                 "robot_torque": env.observation_space['robot']['torque'],
                 "robot_tip_positions": env.observation_space['robot']['tip_positions'],
-                "object_position": env.observation_space["achieved_goal"]["position"],
-                "object_orientation": env.observation_space["achieved_goal"]["orientation"],
-                "goal_object_position": env.observation_space["desired_goal"]["position"],
-                "goal_object_orientation": env.observation_space["desired_goal"]["orientation"],
                 "tip_force": env.observation_space["robot"]["tip_force"],
                 "action_torque": env.observation_space['robot']['torque'],
                 "action_position": env.observation_space['robot']['position'],
+                "desired_goal": env.observation_space["desired_goal"],
+                "achieved_goal": env.observation_space["achieved_goal"],
             }
         )
 
@@ -133,10 +130,8 @@ class NewToOldObsWrapper(gym.ObservationWrapper):
             "robot_torque": obs['robot']['torque'],
             "robot_tip_positions": obs['robot']['tip_positions'],
             "tip_force": obs['robot']['tip_force'],
-            "object_position": obs['achieved_goal']['position'],
-            "object_orientation": obs['achieved_goal']['orientation'],
-            "goal_object_position": obs['desired_goal']['position'],
-            "goal_object_orientation": obs['desired_goal']['orientation'],
+            "desired_goal": obs["desired_goal"],
+            "achieved_goal": obs["achieved_goal"],
         }
         if self.action_space == self.observation_space['robot_position']:
             old_obs['action_torque'] = np.zeros_like(obs['action'])

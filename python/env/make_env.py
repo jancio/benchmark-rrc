@@ -1,6 +1,7 @@
 from .cube_env import RealRobotCubeEnv
 from .cube_env import ActionType as ActionTypeOld
-from .cube_trajectory_env import SimCubeTrajectoryEnv, ActionType, RealRobotCubeTrajectoryEnv
+from .cube_trajectory_env import SimCubeTrajectoryEnv, RealRobotCubeTrajectoryEnv
+from .rearrange_dice_env import ActionType, SimRearrangeDiceEnv, RealRobotRearrangeDiceEnv
 import env.wrappers as wrappers
 
 
@@ -96,6 +97,39 @@ def make_env_traj(goal_trajectory, action_space, frameskip=1, visualization=Fals
             goal_trajectory=goal_trajectory,
             action_type=action_type,
             step_size=frameskip,
+        )
+    env.action_space.seed(seed=rank)
+    env = wrappers.NewToOldObsWrapper(env)
+    env = wrappers.AdaptiveActionSpaceWrapper(env)
+    if not sim:
+        env = wrappers.TimingWrapper(env, 0.001)
+    if visualization:
+        env = wrappers.PyBulletClearGUIWrapper(env)
+    if monitor:
+        env = wrappers.RenderWrapper(env)
+    return env
+
+def make_env_dice(goal, action_space, frameskip=1, visualization=False, monitor=False, sim=False, rank=0):
+    if action_space not in ['torque', 'position', 'torque_and_position', 'position_and_torque']:
+        raise ValueError(f"Unknown action space: {action_space}.")
+    if action_space == 'torque':
+        action_type = ActionType.TORQUE
+    elif action_space in ['torque_and_position', 'position_and_torque']:
+        action_type = ActionType.TORQUE_AND_POSITION
+    else:
+        action_type = ActionType.POSITION
+    if sim:
+        env = SimRearrangeDiceEnv(
+            goal,
+            action_type,
+            frameskip,
+            visualization,
+        )
+    else:
+        env = RealRobotCubeTrajectoryEnv(
+            goal,
+            action_type,
+            frameskip,
         )
     env.action_space.seed(seed=rank)
     env = wrappers.NewToOldObsWrapper(env)

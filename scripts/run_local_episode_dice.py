@@ -5,7 +5,7 @@ import json
 import os
 from typing import get_type_hints
 
-from env.make_env import make_env, make_env_traj
+from env.make_env import make_env_dice
 from mp.utils import set_seed
 from combined_code import create_state_machine
 

@@ -56,6 +56,7 @@ class RealRobotRearrangeDiceEnv(gym.GoalEnv):
         goal: typing.Optional[task.Goal] = None,
         action_type: ActionType = ActionType.POSITION,
         step_size: int = 1,
+        path: str = None,
     ):
         """Initialize.
 
@@ -212,10 +213,12 @@ class RealRobotRearrangeDiceEnv(gym.GoalEnv):
         ]
 
         observation = {
-            "robot_observation": {
+            "robot": {
                 "position": robot_observation.position,
                 "velocity": robot_observation.velocity,
                 "torque": robot_observation.torque,
+                "tip_positions": np.array(self.pinocchio_utils.forward_kinematics(robot_observation.position)),
+                "tip_force": robot_observation.tip_force,
             },
             "action": action,
             "desired_goal": self.goal_masks,
@@ -283,6 +286,11 @@ class RealRobotRearrangeDiceEnv(gym.GoalEnv):
 
             observation = self._create_observation(t, action)
 
+            self.sim_platform.simfinger.reset_finger_positions_and_velocities(
+                observation["robot"]["position"],
+                observation["robot"]["velocity"]
+            )
+
             reward += self.compute_reward(
                 observation["achieved_goal"],
                 observation["desired_goal"],
@@ -303,6 +311,19 @@ class RealRobotRearrangeDiceEnv(gym.GoalEnv):
             raise RuntimeError(
                 "Once started, this environment cannot be reset."
             )
+
+        if self.sim_platform is not None:
+            del self.sim_platform
+
+        initial_robot_position = trifingerpro_limits.robot_position.default
+
+        self.sim_platform = trifinger_simulation.TriFingerPlatform(
+            visualization=self.visualization,
+            initial_robot_position=initial_robot_position,
+            enable_cameras=True,
+            object_type=ObjectType.DICE,
+        )
+
 
         self.platform = robot_fingers.TriFingerPlatformFrontend()
 
@@ -389,6 +410,7 @@ class SimRearrangeDiceEnv(gym.GoalEnv):
         action_type: ActionType = ActionType.POSITION,
         step_size: int = 1,
         visualization: bool = True,
+        path: str = None,
     ):
         """Initialize.
 
@@ -416,7 +438,7 @@ class SimRearrangeDiceEnv(gym.GoalEnv):
         self.visualization = visualization
 
         # will be initialized in reset()
-        self.platform = None
+        self.sim_platform = None
 
         # Set camera parameters as used in simulation
         # view 1
@@ -608,8 +630,9 @@ class SimRearrangeDiceEnv(gym.GoalEnv):
         self.custom_logs = {}
         self.path = path
         # @RM Do we need this?
-        # self.difficulty = 3
-        # self.info = {"difficulty": 3}
+        # Let's keep this for now. It was required by certain base states at some point.
+        self.difficulty = 3
+        self.info = {"difficulty": 3}
         self.simulation = True
         self.frameskip = step_size
 
@@ -658,8 +681,8 @@ class SimRearrangeDiceEnv(gym.GoalEnv):
         return [seed]
 
     def _create_observation(self, t, action):
-        robot_observation = self.platform.get_robot_observation(t)
-        camera_observation = self.platform.get_camera_observation(t)
+        robot_observation = self.sim_platform.get_robot_observation(t)
+        camera_observation = self.sim_platform.get_camera_observation(t)
 
         segmentation_masks = [
             segment_image(cv2.cvtColor(c.image, cv2.COLOR_RGB2BGR))
@@ -683,11 +706,11 @@ class SimRearrangeDiceEnv(gym.GoalEnv):
     def _gym_action_to_robot_action(self, gym_action):
         # construct robot action depending on action type
         if self.action_type == ActionType.TORQUE:
-            robot_action = self.platform.Action(torque=gym_action)
+            robot_action = self.sim_platform.Action(torque=gym_action)
         elif self.action_type == ActionType.POSITION:
-            robot_action = self.platform.Action(position=gym_action)
+            robot_action = self.sim_platform.Action(position=gym_action)
         elif self.action_type == ActionType.TORQUE_AND_POSITION:
-            robot_action = self.platform.Action(
+            robot_action = self.sim_platform.Action(
                 torque=gym_action["torque"], position=gym_action["position"]
             )
         else:
@@ -714,7 +737,7 @@ class SimRearrangeDiceEnv(gym.GoalEnv):
               step() calls will return undefined results.
             - info (dict): info dictionary containing the current time index.
         """
-        if self.platform is None:
+        if self.sim_platform is None:
             raise RuntimeError("Call `reset()` before starting to step.")
 
         if not self.action_space.contains(action):
@@ -738,7 +761,7 @@ class SimRearrangeDiceEnv(gym.GoalEnv):
 
             # send action to robot
             robot_action = self._gym_action_to_robot_action(action)
-            t = self.platform.append_desired_action(robot_action)
+            t = self.sim_platform.append_desired_action(robot_action)
 
             self.info["time_index"] = t
 
@@ -758,12 +781,12 @@ class SimRearrangeDiceEnv(gym.GoalEnv):
 
     def reset(self):
         # hard-reset simulation
-        del self.platform
+        del self.sim_platform
 
         # initialize simulation
         initial_robot_position = trifingerpro_limits.robot_position.default
 
-        self.platform = trifinger_simulation.TriFingerPlatform(
+        self.sim_platform = trifinger_simulation.TriFingerPlatform(
             visualization=self.visualization,
             initial_robot_position=initial_robot_position,
             enable_cameras=True,

@@ -35,6 +35,7 @@ setup(
         "scripts/run_episode.py",
         "scripts/run_local_episode.py",
         "scripts/run_local_episode_traj.py",
+        "scripts/run_local_episode_dice.py",
         "scripts/run_local_evaluation.py",
         "scripts/run_episode_traj.py",
     ],

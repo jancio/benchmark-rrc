@@ -1,6 +1,6 @@
 # Specify the name of the base image below
 Bootstrap: localimage
-From: ./trifinger_user.sif
+From: rrc2021_latest.sif
 
 %setup
 # cp setup.py package.xml ${SINGULARITY_ROOTFS}/
