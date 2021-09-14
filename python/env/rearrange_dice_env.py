@@ -799,6 +799,8 @@ class SimRearrangeDiceEnv(gym.GoalEnv):
         else:
             self.current_goal = self.goal
 
+        # task.visualize_2d(self.current_goal)
+
         self.goal_masks = task.generate_goal_mask(
             self.camera_params, self.current_goal
         )

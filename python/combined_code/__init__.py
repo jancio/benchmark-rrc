@@ -1,5 +1,6 @@
 from cpc import CPCStateMachine as CPCwithTG
 from cpc import CPCStateMachineL4 as CPCwithTGL4
+from cpc import CPCDiceStateMachine as CPCwithTGDice
 from cic.states import CICStateMachineLvl2 as CICwithCG
 from cic.states import CICStateMachineLvl4 as CICwithCGL4
 from cic.states import CICStateMachineLvl1 as CICwithCGL1
@@ -24,6 +25,7 @@ state_machines = {
     'cpc-tg-l2': CPCwithTG,
     'cpc-tg-l3': CPCwithTG,
     'cpc-tg-l4': CPCwithTGL4,
+    'cpc-tg-dice-l3': CPCwithTGDice,
     'residual-mp-pg-l3': rsm.ResidualMP_with_PG_LVL3,
     'residual-mp-pg-l4': rsm.ResidualMP_with_PG_LVL4,
     'residual-cic-cg-l3': rsm.ResidualCIC_with_CG_LVL3,
@@ -52,6 +54,8 @@ def create_state_machine(difficulty, method, env, residual=False, bo=False):
                              f"Method: {method}, difficulty: {difficulty}.")
     if method not in ['mp-pg', 'cic-cg', 'cpc-tg'] and difficulty != 4:
         raise ValueError(f'{method} is only implemented for difficulty 4.')
+    if env.env.env.env.__class__.__name__ == "SimRearrangeDiceEnv":
+        method += f'-dice'
     id = method + f'-l{difficulty}'
     if residual:
         id = 'residual-' + id

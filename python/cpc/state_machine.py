@@ -72,7 +72,6 @@ class StateMachine(object):
 @gin.configurable
 class CPCStateMachine(StateMachine):
     def build(self):
-
         self.goto_init_pose = cpc_states.GoToInitState(self.env)
         self.align_to_object = cpc_states.AlignState(self.env)
         self.lower = cpc_states.LowerState(self.env)
@@ -121,6 +120,18 @@ class CPCStateMachineL4(StateMachine):
         self.move_to_goal.connect(
             next_state=self.move_to_goal, failure_state=self.goto_init_pose)
         return self.goto_init_pose
+
+
+@gin.configurable
+class CPCDiceStateMachine(StateMachine):
+    def build(self):
+        self.goto_init_pose = cpc_states.GoToInitState(self.env)
+
+        # define transitions between states
+        self.goto_init_pose.connect(next_state=self.lower,
+                                    failure_state=self.goto_init_pose)
+        return self.goto_init_pose
+
 
 class MixedStateMachine1(StateMachine):
     """

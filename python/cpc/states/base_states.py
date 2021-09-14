@@ -13,6 +13,7 @@ import mp.align_rotation as rot_util
 import time
 
 CUBE_SIZE = 0.0325
+DIE_WIDTH = 0.022
 DAMP = 1E-6
 EPS = 1E-2
 
